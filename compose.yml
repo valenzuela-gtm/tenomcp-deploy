@@ -1,0 +1,98 @@
+# compose.yml — all-in-one Hostinger UI deploy stack.
+#
+# Both services (Reevo MCP + Nginx Proxy Manager) in a single Docker Compose
+# project, designed to be served from a public URL and consumed by Hostinger
+# Docker Manager's "Compose from URL" feature. Uses `image:` references only;
+# no Docker build step required at deploy time.
+#
+# The Reevo MCP image is built and published automatically by GitHub Actions
+# (.github/workflows/build-and-publish-mcp.yml in tenoro-hq) whenever MCP
+# source code changes on main. The image lives at:
+#
+#   ghcr.io/valenzuela-gtm/reevo-mcp:latest
+#
+# This file is ALSO the source-of-truth for the public deploy repo
+# (https://github.com/valenzuela-gtm/tenomcp-deploy). Copy it verbatim to that
+# repo when changes are made — Hostinger fetches the raw URL of that file.
+#
+# Full deploy runbook: README.md in this directory.
+
+services:
+  reevo-mcp-codex:
+    image: ghcr.io/valenzuela-gtm/reevo-mcp:latest
+    container_name: reevo-mcp-codex
+    restart: unless-stopped
+    environment:
+      # In a container with no published port, "all interfaces" is a
+      # Docker-internal namespace only — safe and correct.
+      BIND_HOST: 0.0.0.0
+      NODE_ENV: production
+
+      # Required — set these via the Docker Manager UI env-var panel.
+      REEVO_API_KEY: ${REEVO_API_KEY}
+      MCP_BEARER_TOKEN: ${MCP_BEARER_TOKEN}
+
+      # Confirmed Reevo API defaults (per Reevo support, 2026-05-26).
+      REEVO_API_BASE_URL: https://api.reevo.ai/api/v1/public
+      REEVO_AUTH_HEADER: x-api-key
+      REEVO_AUTH_SCHEME: ""
+
+      # Production hardening defaults.
+      REEVO_RETRY_COUNT: "3"
+      REEVO_RETRY_BASE_MS: "250"
+      LOG_LEVEL: info
+      LOG_BODIES: "false"
+      REDACT_EMAIL_VALUES: "true"
+      ALLOW_INSECURE_REEVO_BASE_URL: "false"
+      TRUST_PROXY: "1"
+      JSON_BODY_LIMIT: 1mb
+      SHUTDOWN_GRACE_MS: "10000"
+      PORT: "3000"
+    expose:
+      # Internal Docker network only — NOT published to host.
+      - "3000"
+    healthcheck:
+      # node:22-alpine ships BusyBox; wget is available.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ready | grep -q '\"status\":\"ready\"' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+    security_opt:
+      - no-new-privileges:true
+
+  nginx-proxy-manager:
+    image: jc21/nginx-proxy-manager:latest
+    container_name: nginx-proxy-manager
+    restart: unless-stopped
+    ports:
+      # Public HTTP — ACME HTTP-01 challenges + redirect to HTTPS.
+      - "80:80"
+      # Public HTTPS — the only real entry point.
+      - "443:443"
+      # NPM admin UI — bound to LOOPBACK only. Access via SSH tunnel:
+      #   ssh -L 8181:127.0.0.1:81 root@<vps-ip>
+      #   open http://localhost:8181
+      # NEVER expose port 81 publicly.
+      - "127.0.0.1:81:81"
+    volumes:
+      - npm-data:/data
+      - npm-letsencrypt:/etc/letsencrypt
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+# No explicit networks block — Docker Compose creates one default project
+# network and puts both services on it. They reach each other by container
+# name (`reevo-mcp-codex`, `nginx-proxy-manager`).
+
+volumes:
+  npm-data:
+  npm-letsencrypt:
