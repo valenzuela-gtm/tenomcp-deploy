@@ -41,6 +41,12 @@ services:
       AUTHKIT_DOMAIN: ${AUTHKIT_DOMAIN:-}
       WORKOS_CLIENT_ID: ${WORKOS_CLIENT_ID:-}
       MCP_RESOURCE_URL: ${MCP_RESOURCE_URL:-https://reevomcp.galapago.cloud/mcp}
+      # Authorization allowlist (who may connect via OAuth). Comma-separated.
+      # FAIL-CLOSED: if OAuth is enabled but BOTH are empty, all OAuth logins
+      # are rejected (only MCP_BEARER_TOKEN works). Requires the email claim in
+      # the AuthKit JWT template (see runbook).
+      OAUTH_ALLOWED_EMAILS: ${OAUTH_ALLOWED_EMAILS:-}
+      OAUTH_ALLOWED_DOMAINS: ${OAUTH_ALLOWED_DOMAINS:-}
 
       # Confirmed Reevo API defaults (per Reevo support, 2026-05-26).
       REEVO_API_BASE_URL: https://api.reevo.ai/api/v1/public
