@@ -28,11 +28,31 @@ OAUTH_ENABLED=true
 AUTHKIT_DOMAIN=https://<your-app>.authkit.app   # from WorkOS dashboard
 WORKOS_CLIENT_ID=client_...                       # from WorkOS dashboard
 MCP_RESOURCE_URL=https://reevomcp.galapago.cloud/mcp
+OAUTH_ALLOWED_EMAILS=you@example.com,teammate@example.com
+# or restrict by domain instead/as well:
+# OAUTH_ALLOWED_DOMAINS=example.com
 ```
 
 No WorkOS API key is required — tokens are verified locally against AuthKit's
 public keys. The static `MCP_BEARER_TOKEN` keeps working in parallel for CLI
 clients. Leave `OAUTH_ENABLED` unset (or `false`) to run bearer-token-only.
+
+**Authorization is fail-closed.** If `OAUTH_ENABLED=true` but both
+`OAUTH_ALLOWED_EMAILS` and `OAUTH_ALLOWED_DOMAINS` are empty, every OAuth login
+is rejected (only the bearer token works) — so the endpoint is never
+accidentally open to any authenticated WorkOS user.
+
+**Required WorkOS step for the allowlist:** the email must be present in the
+access token. In the WorkOS dashboard → **Authentication → Sessions → JWT
+Template** (a.k.a. under *Features*), add the user's email to the template:
+
+```json
+{
+  "email": {{ user.email }}
+}
+```
+
+Without this, tokens carry no email claim and all OAuth logins are denied.
 
 Full deploy runbook lives in the private tenoro-hq repo at `13-services/hostinger-stack/README.md`.
 
