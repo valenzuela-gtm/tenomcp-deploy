@@ -18,6 +18,22 @@ https://raw.githubusercontent.com/valenzuela-gtm/tenomcp-deploy/main/compose.yml
 
 Then set environment variables `REEVO_API_KEY` and `MCP_BEARER_TOKEN` in the Hostinger UI before deploying.
 
+### Optional: OAuth login (WorkOS AuthKit)
+
+To let Claude web/mobile, ChatGPT, and other clients connect with a login flow
+instead of pasting the bearer token, set these in the Hostinger UI as well:
+
+```text
+OAUTH_ENABLED=true
+AUTHKIT_DOMAIN=https://<your-app>.authkit.app   # from WorkOS dashboard
+WORKOS_CLIENT_ID=client_...                       # from WorkOS dashboard
+MCP_RESOURCE_URL=https://reevomcp.galapago.cloud/mcp
+```
+
+No WorkOS API key is required — tokens are verified locally against AuthKit's
+public keys. The static `MCP_BEARER_TOKEN` keeps working in parallel for CLI
+clients. Leave `OAUTH_ENABLED` unset (or `false`) to run bearer-token-only.
+
 Full deploy runbook lives in the private tenoro-hq repo at `13-services/hostinger-stack/README.md`.
 
 ## Updating
