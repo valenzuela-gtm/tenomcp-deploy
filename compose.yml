@@ -32,6 +32,16 @@ services:
       REEVO_API_KEY: ${REEVO_API_KEY}
       MCP_BEARER_TOKEN: ${MCP_BEARER_TOKEN}
 
+      # OAuth via WorkOS AuthKit — lets Claude web/mobile, ChatGPT, etc. connect
+      # with a login flow instead of pasting MCP_BEARER_TOKEN. The static bearer
+      # token above keeps working for CLI clients in parallel. No WorkOS API key
+      # is needed: tokens are verified locally against AuthKit's public JWKS.
+      # Set OAUTH_ENABLED=true and the two values below via the Docker Manager UI.
+      OAUTH_ENABLED: ${OAUTH_ENABLED:-false}
+      AUTHKIT_DOMAIN: ${AUTHKIT_DOMAIN:-}
+      WORKOS_CLIENT_ID: ${WORKOS_CLIENT_ID:-}
+      MCP_RESOURCE_URL: ${MCP_RESOURCE_URL:-https://reevomcp.galapago.cloud/mcp}
+
       # Confirmed Reevo API defaults (per Reevo support, 2026-05-26).
       REEVO_API_BASE_URL: https://api.reevo.ai/api/v1/public
       REEVO_AUTH_HEADER: x-api-key
