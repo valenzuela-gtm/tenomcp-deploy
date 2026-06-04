@@ -1,15 +1,21 @@
 # compose.yml — all-in-one Hostinger UI deploy stack.
 #
-# Both services (Reevo MCP + Nginx Proxy Manager) in a single Docker Compose
-# project, designed to be served from a public URL and consumed by Hostinger
-# Docker Manager's "Compose from URL" feature. Uses `image:` references only;
-# no Docker build step required at deploy time.
+# Both services (Volt MCP gateway + Nginx Proxy Manager) in a single Docker
+# Compose project, designed to be served from a public URL and consumed by
+# Hostinger Docker Manager's "Compose from URL" feature. Uses `image:`
+# references only; no Docker build step required at deploy time.
 #
-# The Reevo MCP image is built and published automatically by GitHub Actions
-# (.github/workflows/build-and-publish-mcp.yml in tenoro-hq) whenever MCP
-# source code changes on main. The image lives at:
+# The Volt MCP image is built and published automatically by GitHub Actions
+# (.github/workflows/build-and-publish-volt-mcp.yml in tenoro-hq) whenever the
+# gateway source changes on main. The image lives at:
 #
-#   ghcr.io/valenzuela-gtm/reevo-mcp:latest
+#   ghcr.io/valenzuela-gtm/volt-mcp:latest
+#
+# What this gateway does: it is a thin OAuth-terminating reverse proxy in front
+# of VoltChat's own MCP server (https://mcp.voltchat.com/mcp). Claude web/mobile
+# and ChatGPT can only connect via an OAuth login flow, which VoltChat does not
+# offer — it only accepts a static API key. This gateway accepts the OAuth login
+# (WorkOS AuthKit) and injects the Volt API key upstream, server-side.
 #
 # This file is ALSO the source-of-truth for the public deploy repo
 # (https://github.com/valenzuela-gtm/tenomcp-deploy). Copy it verbatim to that
@@ -18,9 +24,9 @@
 # Full deploy runbook: README.md in this directory.
 
 services:
-  reevo-mcp-codex:
-    image: ghcr.io/valenzuela-gtm/reevo-mcp:latest
-    container_name: reevo-mcp-codex
+  volt-mcp:
+    image: ghcr.io/valenzuela-gtm/volt-mcp:latest
+    container_name: volt-mcp
     restart: unless-stopped
     environment:
       # In a container with no published port, "all interfaces" is a
@@ -28,15 +34,19 @@ services:
       BIND_HOST: 0.0.0.0
       NODE_ENV: production
 
-      # Required — set these via the Docker Manager UI env-var panel.
-      REEVO_API_KEY: ${REEVO_API_KEY}
-      MCP_BEARER_TOKEN: ${MCP_BEARER_TOKEN}
+      # Required — set this via the Docker Manager UI env-var panel.
+      # Your Volt API key from https://app.voltchat.com/settings
+      VOLT_API_KEY: ${VOLT_API_KEY}
+      # Optional override; defaults to VoltChat's MCP endpoint.
+      VOLT_MCP_URL: ${VOLT_MCP_URL:-https://mcp.voltchat.com/mcp}
+
+      # Optional static bearer for your own CLI testing (curl, scripts). Claude
+      # web / ChatGPT use OAuth below, not this.
+      MCP_BEARER_TOKEN: ${MCP_BEARER_TOKEN:-}
 
       # OAuth via WorkOS AuthKit — lets Claude web/mobile, ChatGPT, etc. connect
-      # with a login flow instead of pasting MCP_BEARER_TOKEN. The static bearer
-      # token above keeps working for CLI clients in parallel. No WorkOS API key
-      # is needed: tokens are verified locally against AuthKit's public JWKS.
-      # Set OAUTH_ENABLED=true and the two values below via the Docker Manager UI.
+      # with a login flow. No WorkOS API key is needed: tokens are verified
+      # locally against AuthKit's public JWKS. Set these via the Docker Manager UI.
       OAUTH_ENABLED: ${OAUTH_ENABLED:-false}
       AUTHKIT_DOMAIN: ${AUTHKIT_DOMAIN:-}
       WORKOS_CLIENT_ID: ${WORKOS_CLIENT_ID:-}
@@ -48,18 +58,10 @@ services:
       OAUTH_ALLOWED_EMAILS: ${OAUTH_ALLOWED_EMAILS:-}
       OAUTH_ALLOWED_DOMAINS: ${OAUTH_ALLOWED_DOMAINS:-}
 
-      # Confirmed Reevo API defaults (per Reevo support, 2026-05-26).
-      REEVO_API_BASE_URL: https://api.reevo.ai/api/v1/public
-      REEVO_AUTH_HEADER: x-api-key
-      REEVO_AUTH_SCHEME: ""
-
       # Production hardening defaults.
-      REEVO_RETRY_COUNT: "3"
-      REEVO_RETRY_BASE_MS: "250"
       LOG_LEVEL: info
       LOG_BODIES: "false"
       REDACT_EMAIL_VALUES: "true"
-      ALLOW_INSECURE_REEVO_BASE_URL: "false"
       TRUST_PROXY: "1"
       JSON_BODY_LIMIT: 1mb
       SHUTDOWN_GRACE_MS: "10000"
@@ -107,7 +109,7 @@ services:
 
 # No explicit networks block — Docker Compose creates one default project
 # network and puts both services on it. They reach each other by container
-# name (`reevo-mcp-codex`, `nginx-proxy-manager`).
+# name (`volt-mcp`, `nginx-proxy-manager`).
 
 volumes:
   npm-data:
