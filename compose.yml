@@ -26,7 +26,10 @@
 services:
   volt-mcp:
     image: ghcr.io/valenzuela-gtm/volt-mcp:latest
-    container_name: volt-mcp
+    # Container name deliberately kept as the old Reevo value so Nginx Proxy
+    # Manager keeps forwarding to it with NO changes on redeploy. The service
+    # is volt-mcp (see image/logs); only this internal hostname stays legacy.
+    container_name: reevo-mcp-codex
     restart: unless-stopped
     environment:
       # In a container with no published port, "all interfaces" is a
@@ -109,7 +112,7 @@ services:
 
 # No explicit networks block — Docker Compose creates one default project
 # network and puts both services on it. They reach each other by container
-# name (`volt-mcp`, `nginx-proxy-manager`).
+# name (`reevo-mcp-codex` [the volt-mcp container], `nginx-proxy-manager`).
 
 volumes:
   npm-data:
